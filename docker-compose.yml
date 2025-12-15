@@ -1,0 +1,71 @@
+services:
+  user_db:
+    image: postgres:15
+    container_name: user_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: user_service_db
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+
+  user_service:
+    build: ./user_service
+    container_name: user_service
+    environment:
+      DATABASE_URL: postgresql://user:password@user_db:5432/user_service_db
+    depends_on:
+      - user_db
+    ports:
+      - "5000:5000"
+
+  post_db:
+    image: postgres:15
+    container_name: post_db
+    environment:
+      POSTGRES_USER: post
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: post_service_db
+    volumes:
+      - post_db_data:/var/lib/postgresql/data
+
+  post_service:
+    build: ./post_service
+    container_name: post_service
+    environment:
+      DATABASE_URL: postgresql://post:password@post_db:5432/post_service_db
+      USER_SERVICE_URL: http://user_service:5000
+    depends_on:
+      - post_db
+      - user_service
+    ports:
+      - "5001:5000"
+
+  interaction_db:
+    image: postgres:15
+    container_name: interaction_db
+    environment:
+      POSTGRES_USER: interaction
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: interaction_service_db
+    volumes:
+      - interaction_db_data:/var/lib/postgresql/data
+
+  interaction_service:
+    build: ./interaction_service
+    container_name: interaction_service
+    environment:
+      DATABASE_URL: postgresql://interaction:password@interaction_db:5432/interaction_service_db
+      USER_SERVICE_URL: http://user_service:5000
+      POST_SERVICE_URL: http://post_service:5000
+    depends_on:
+      - interaction_db
+      - user_service
+      - post_service
+    ports:
+      - "5002:5000"
+
+volumes:
+  user_db_data:
+  post_db_data:
+  interaction_db_data:

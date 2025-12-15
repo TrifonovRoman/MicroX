@@ -1,0 +1,27 @@
+services:
+  user_db:
+    image: postgres:15
+    container_name: user_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: user_service_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+
+  user_service:
+    build: .
+    container_name: user_service
+    environment:
+      DATABASE_URL: postgresql://user:password@user_db:5432/user_service_db
+      FLASK_APP: app
+      FLASK_ENV: development
+    ports:
+      - "5000:5000"
+    depends_on:
+      - user_db
+
+volumes:
+  user_db_data:

@@ -1,0 +1,60 @@
+# Byte-code files
+*.pyc
+__pycache__/
+[0-9]*.py[co]
+
+# Distributions and packaging
+.Python
+build/
+dist/
+wheels/
+*.egg-info/
+*.egg
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Editors and IDEs
+.idea/  # pycharm
+.vscode/ # VS Code (can be more specific)
+*.swp
+*~
+.DS_Store # macOS
+Thumbs.db # Windows
+
+# Interpreter
+# Uncomment the following line if you do not want to commit the python executable
+# within a virtual environment
+# bin/python
+# Include the following line if your system\'s python is used and you wish to ignore
+# the compiled files
+# *.py[co]
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# Specific directories to ignore
+# Logs and databases
+logs/
+*.log
+*.sqlite
+*.sqlite3
+
+# Specific testing files
+.pytest_cache/
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-line.txt

@@ -1,0 +1,27 @@
+services:
+  post_db:
+    image: postgres:15
+    container_name: post_db
+    environment:
+      POSTGRES_USER: post
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: post_service_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - post_db_data:/var/lib/postgresql/data
+
+  post_service:
+    build: .
+    container_name: post_service
+    environment:
+      DATABASE_URL: postgresql://post:password@post_db:5432/post_service_db
+      USER_SERVICE_URL: http://user_service:5000
+      FLASK_APP: app
+    ports:
+      - "5001:5000"
+    depends_on:
+      - post_db
+
+volumes:
+  post_db_data:
