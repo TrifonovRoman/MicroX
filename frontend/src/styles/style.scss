@@ -1,0 +1,379 @@
+:root {
+  /* Основные фоны */
+  --background-color: #e5e7eb;          /* Светло-серый фон страницы */
+  --second-background-color: #FFFFFF;   /* Белый (карточки) */
+  --card-background: #f4f5f7;           /* Темный блок */
+  --surface-background: #e5e7eb;        /* Еще темнее для некоторых блоков */
+
+  /* Текст */
+  --main-text-color: #23242b;           /* Почти белый текст */
+  --secondary-text-color: #6b7280;      /* Серый текст */
+  --disabled-text-color: #bfc2cb;       /* Отключенный текст */
+
+  /* Акценты - только фиолетовый */
+    --primary-color: #1DA1F2;             /* Классический твиттер-синий */
+    --primary-variant: #0d8bd9;           /* Более насыщенный синий */
+    --hover-color: #f0f5ff;           
+
+  /* Состояния - монохромные */
+  --success-color: #4CAF50;             /* Зеленый (прибыль) */
+  --warning-color: #FF9800;             /* Оранжевый (предупреждение) */
+  --error-color: #F44336;               /* Красный (убытки) */
+  --info-color: #2196F3;                /* Синий (информация) */
+
+  /* Разделители и границы */
+  --divider-color: #d1d5db;             /* Для разделителей */
+  --border-color: #d1d5db;             /* Нет бордеров */
+  --outline-color: #BDBDBD;             /* Контуры */
+
+  /* Тени */
+  --shadow-1: 0 4px 24px rgba(0,0,0,0.08);
+  --shadow-2: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+  --shadow-3: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+
+  --hover-effect: rgba(0,0,0, 0.1);
+  --sidebar-width: 80px;
+
+  --transition: .2s;
+}
+
+.text-color {
+  color: var(--main-text-color) !important;
+}
+
+.secondary-text-color {
+  color: var(--secondary-text-color) !important;
+}
+
+.primary-color {
+  color: var(--primary-color) !important;
+}
+
+.main-accent-color {
+  color: var(--primary-color) !important;
+}
+
+.second-accent-color {
+  color: var(--primary-variant) !important;
+}
+
+.disabled {
+  color: var(--disabled-text-color) !important;
+}
+
+body {
+  background: var(--background-color) !important;
+  min-height: 100vh;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.hovered-icon:hover {
+  color: var(--primary-color) !important;
+}
+
+.hovered-icon {
+  color: var(--primary-variant);
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--primary-color) !important;
+}
+
+h2 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--main-text-color) !important;
+}
+
+h3 {
+  color: var(--primary-variant);
+}
+
+a {
+  text-decoration: none !important;
+}
+
+.shadow-1 {
+    box-shadow: var(--shadow-1)!important;
+}
+
+.shadow-2 {
+    box-shadow: var(--shadow-2)!important;
+}
+
+.shadow-3 {
+    box-shadow: var(--shadow-3)!important;
+}
+
+
+.btn-violet {
+  background: var(--primary-color) !important;
+  color: #fff !important;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 400;
+}
+
+body {
+    background-color: #fcfcfd !important;
+    min-height: 100vh;
+    color: #2d3748;
+    overflow-x: hidden;
+    width: 100%!important;
+}
+
+.text-bold {
+    font-weight: 600;
+}
+
+.text-decoration-none {
+    text-decoration: none;
+}
+
+/* Сайдбар */
+.sidebar {
+    width: var(--sidebar-width);
+    background: var(--second-background-color);
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.5rem 0;
+    border-right: 1px solid rgba(0, 0, 0, 0.05);
+    transition: var(--transition);
+}
+
+/* Логотип */
+.logo-section {
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.logo {
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
+    border: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+
+/* Разделитель */
+.divider {
+    width: 40px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1), transparent);
+    margin: 1rem 0;
+}
+
+/* Меню */
+.nav-menu {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 0 0.75rem;
+}
+
+
+
+
+.nav-item {
+    width: 60px;
+    height: 60px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    text-decoration: none !important;
+    color: var(--text-color);
+    transition: var(--transition);
+}
+
+.nav-item:hover {
+    background-color: var(--hover-color);
+    color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+.nav-item.active {
+    background-color: var(--hover-color);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.nav-item i {
+    font-size: 1.2rem;
+    margin-bottom: 0.35rem;
+    transition: var(--transition);
+}
+
+.nav-item span {
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+
+.user-avatar-sm div {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #f72585, #b5179e);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 3px solid white;
+}
+
+.shadow {
+    box-shadow: var(--shadow);
+}
+
+.user-avatar-md div {
+    width: 90px;
+    height: 90px;
+    background: linear-gradient(135deg, #f72585, #b5179e);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 2rem;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 3px solid white;
+}
+
+.main-content {
+    margin: auto;
+    padding: 2rem;
+    min-height: 100vh;
+    max-width: 1000px!important;
+    transition: var(--transition);
+}
+
+.header {
+    border-bottom: 1px solid var(--separator-color);
+
+}
+
+.post {
+    background: #fff;
+    border-radius: 10px;
+}
+
+.post-footer {
+    max-width: 150px;
+    .post-footer-item {
+        cursor: pointer;
+    }
+
+
+}
+
+.post-footer-item .like-icon:hover {
+    color: var(--error-color);
+}
+
+.post-footer-item .active-like {
+    color: var(--error-color);
+}
+
+.post-footer-item .icon:hover {
+    color: black;
+}
+
+.auth {
+    background: #fff;
+    border-radius: 12px;
+}
+
+.auth-form {
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+
+
+
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    :root {
+        --sidebar-width: 80px;
+    }
+    
+    .nav-item {
+        padding: 0.6rem;
+    }
+    
+    .nav-item i {
+        font-size: 1.3rem;
+    }
+    
+    .nav-item span {
+        font-size: 0.7rem;
+    }
+    
+    .logo {
+        width: 46px;
+        height: 46px;
+        font-size: 1.3rem;
+    }
+}
+
+@media (max-width: 576px) {
+    :root {
+        --sidebar-width: 70px;
+    }
+    
+    .main-content {
+        padding: 1.5rem;
+    }
+    
+    .nav-item {
+        padding: 0.5rem;
+    }
+    
+    .nav-item i {
+        font-size: 1.2rem;
+    }
+    
+    .logo {
+        width: 42px;
+        height: 42px;
+        font-size: 1.2rem;
+    }
+}
+
