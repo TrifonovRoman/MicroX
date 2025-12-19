@@ -10,7 +10,7 @@ services:
       - user_db_data:/var/lib/postgresql/data
 
   user_service:
-    build: ./user_service
+    build: ./backend/user_service
     container_name: user_service
     environment:
       DATABASE_URL: postgresql://user:password@user_db:5432/user_service_db
@@ -30,7 +30,7 @@ services:
       - post_db_data:/var/lib/postgresql/data
 
   post_service:
-    build: ./post_service
+    build: ./backend/post_service
     container_name: post_service
     environment:
       DATABASE_URL: postgresql://post:password@post_db:5432/post_service_db
@@ -52,7 +52,7 @@ services:
       - interaction_db_data:/var/lib/postgresql/data
 
   interaction_service:
-    build: ./interaction_service
+    build: ./backend/interaction_service
     container_name: interaction_service
     environment:
       DATABASE_URL: postgresql://interaction:password@interaction_db:5432/interaction_service_db
