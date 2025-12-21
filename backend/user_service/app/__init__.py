@@ -8,7 +8,7 @@ load_dotenv()
 migrate = Migrate()
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder="uploads")
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config["JWT_SECRET"] = os.environ["JWT_SECRET"]

@@ -8,11 +8,13 @@ class User(db.Model):
     username = db.Column(db.Text, nullable=False, unique=True)
     display_name = db.Column(db.Text)
     bio = db.Column(db.Text)
+    avatar_url = db.Column(db.Text)
     password_hash = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 class RefreshToken(db.Model):
     __tablename__ = "refresh_tokens"
+
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.Text, nullable=False, unique=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
