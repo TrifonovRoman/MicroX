@@ -40,8 +40,6 @@ def register():
     db.session.commit()
 
     response = jsonify({
-        "id": user.id,
-        "username": user.username,
         "access_token": access
     })
 
@@ -79,8 +77,6 @@ def login():
     db.session.commit()
 
     response = jsonify({
-        "id": user.id,
-        "username": user.username,
         "access_token": access
     })
 
