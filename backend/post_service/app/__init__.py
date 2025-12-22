@@ -3,8 +3,6 @@ from .database import db
 from flask_migrate import Migrate
 import os
 from dotenv import load_dotenv
-from . import models
-from .routes import bp
 
 load_dotenv()
 
@@ -19,7 +17,6 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
-    from . import models
     from .routes import bp
     app.register_blueprint(bp)
 

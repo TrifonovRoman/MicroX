@@ -41,31 +41,6 @@ services:
     ports:
       - "5001:5000"
 
-  interaction_db:
-    image: postgres:15
-    container_name: interaction_db
-    environment:
-      POSTGRES_USER: interaction
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: interaction_service_db
-    volumes:
-      - interaction_db_data:/var/lib/postgresql/data
-
-  interaction_service:
-    build: ./backend/interaction_service
-    container_name: interaction_service
-    environment:
-      DATABASE_URL: postgresql://interaction:password@interaction_db:5432/interaction_service_db
-      USER_SERVICE_URL: http://user_service:5000
-      POST_SERVICE_URL: http://post_service:5000
-    depends_on:
-      - interaction_db
-      - user_service
-      - post_service
-    ports:
-      - "5002:5000"
-
 volumes:
   user_db_data:
   post_db_data:
-  interaction_db_data:
