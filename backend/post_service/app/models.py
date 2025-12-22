@@ -34,3 +34,16 @@ class Comment(db.Model):
     text = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=now_utc)
     is_deleted = db.Column(db.Boolean, default=False)
+
+class PostImage(db.Model):
+    __tablename__ = "post_images"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
+    file_path = db.Column(db.Text, nullable=False)
+    position = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=now_utc)
+
+    __table_args__ = (
+        db.UniqueConstraint("post_id", "position"),
+    )

@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
 from .database import db
-from .models import Post, Like, Comment
+from .models import Post, Like, Comment, PostImage
 from .client import validate_user
 from sqlalchemy import func, desc
 import logging
+import os
 from sqlalchemy.exc import IntegrityError
 
 bp = Blueprint('posts', __name__)
@@ -15,20 +16,51 @@ def create_post():
     if not user:
         return jsonify({"error": "unauthorized"}), 401
 
-    data = request.get_json() or {}
-    text = data.get("text")
-    parent_id = data.get("parent_post_id")
+    text = request.form.get("text")
+    parent_id = request.form.get("parent_post_id", type=int)
+    images = request.files.getlist("images")
 
     if not text:
         return jsonify({"error": "text required"}), 400
+
+    if images and len(images) > 10:
+        return jsonify({"error": "max 10 images allowed"}), 400
 
     if parent_id:
         parent = Post.query.get(parent_id)
         if not parent or parent.is_deleted:
             return jsonify({"error": "parent not found"}), 404
 
-    post = Post(user_id=user["id"], text=text, parent_post_id=parent_id)
+    post = Post(
+        user_id=user["id"],
+        text=text,
+        parent_post_id=parent_id
+    )
     db.session.add(post)
+    db.session.flush()
+
+    saved_images = []
+    if images:
+        post_dir = os.path.join("uploads/posts", str(post.id))
+        os.makedirs(post_dir, exist_ok=True)
+
+        for i, file in enumerate(images):
+            ext = file.filename.rsplit(".", 1)[-1].lower()
+            if ext not in {"png", "jpg", "jpeg", "webp"}:
+                return jsonify({"error": "invalid image type"}), 400
+
+            filename = f"{i}.{ext}"
+            path = os.path.join(post_dir, filename)
+            file.save(path)
+
+            img = PostImage(
+                post_id=post.id,
+                file_path=f"/static/posts/{post.id}/{filename}",
+                position=i
+            )
+            db.session.add(img)
+            saved_images.append(img.file_path)
+
     db.session.commit()
 
     logging.info(f"Post created id={post.id} by user={user['id']}")
@@ -37,6 +69,7 @@ def create_post():
         "user_id": post.user_id,
         "text": post.text,
         "parent_post_id": post.parent_post_id,
+        "images": saved_images,
         "created_at": post.created_at.isoformat()
     }), 201
 
@@ -49,6 +82,12 @@ def get_post(post_id):
     likes = db.session.query(func.count(Like.id)).filter(Like.post_id == post_id).scalar()
     comments = db.session.query(func.count(Comment.id)).filter(Comment.post_id == post_id, Comment.is_deleted == False).scalar()
     reposts = db.session.query(func.count(Post.id)).filter(Post.parent_post_id == post_id, Post.is_deleted == False).scalar()
+    images = db.session.query(
+        PostImage.file_path,
+        PostImage.position
+    ).filter(   
+        PostImage.post_id == post_id
+    ).order_by(PostImage.position).all()
 
     result = {
         "id": post.id,
@@ -60,7 +99,11 @@ def get_post(post_id):
             "likes": likes,
             "comments": comments,
             "reposts": reposts
-        }
+        },
+        "images": [
+            {"url": path, "position": pos}
+            for path, pos in images
+        ]
     }
 
     if request.args.get("expand") == "author":
@@ -104,16 +147,28 @@ def list_posts():
         func.count(Post.id).label("reposts_count")
     ).filter(Post.is_deleted==False, Post.parent_post_id!=None).group_by(Post.parent_post_id).subquery()
 
+    images_sub = db.session.query(
+        PostImage.post_id.label("post_id"),
+        func.json_agg(
+            func.json_build_object(
+                "url", PostImage.file_path,
+                "position", PostImage.position
+            )
+        ).label("images")
+    ).group_by(PostImage.post_id).subquery()
+
     # Main query
     q = db.session.query(
         Post,
         func.coalesce(likes_all_sub.c.likes_count, 0).label("likes_count"),
         func.coalesce(comments_count_sub.c.comments_count, 0).label("comments_count"),
         func.coalesce(reposts_count_sub.c.reposts_count, 0).label("reposts_count"),
-        func.coalesce(likes_me_sub.c.liked, 0).label("liked_by_me") if likes_me_sub is not None else literal(False).label("liked_by_me")
+        func.coalesce(likes_me_sub.c.liked, 0).label("liked_by_me") if likes_me_sub is not None else literal(False).label("liked_by_me"),
+        images_sub.c.images
     ).outerjoin(likes_all_sub, likes_all_sub.c.post_id == Post.id
     ).outerjoin(comments_count_sub, comments_count_sub.c.post_id == Post.id
     ).outerjoin(reposts_count_sub, reposts_count_sub.c.post_id == Post.id
+    ).outerjoin(images_sub, images_sub.c.post_id == Post.id
     )
 
     if likes_me_sub is not None:
@@ -123,8 +178,10 @@ def list_posts():
 
     posts = q.all()
 
-    return jsonify([
-        {
+    result = []
+    for post, likes_count, comments_count, reposts_count, liked_by_me, images in posts:
+        images_sorted = sorted(images or [], key=lambda x: x["position"]) if images else []
+        result.append({
             "id": post.id,
             "text": post.text,
             "counts": {
@@ -132,10 +189,11 @@ def list_posts():
                 "comments": comments_count,
                 "reposts": reposts_count
             },
+            "images": images_sorted,
             "liked_by_me": bool(liked_by_me)
-        }
-        for post, likes_count, comments_count, reposts_count, liked_by_me in posts
-    ]), 200
+        })
+
+    return jsonify(result), 200
 
 @bp.route('/posts/<int:post_id>', methods=['DELETE'])
 def delete_post(post_id):
