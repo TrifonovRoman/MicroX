@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from collections import defaultdict
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, literal
 from PIL import Image
 from .database import db
 from .models import Post, Like, Comment, PostImage
@@ -240,6 +240,102 @@ def list_posts():
 
     return jsonify(result), 200
 
+@bp.route('/posts/users/<int:user_id>', methods=['GET'])
+def list_user_posts(user_id):
+    current_user = validate_user(request.headers.get("Authorization"))
+    current_user_id = current_user["id"] if current_user else None
+
+    # Likes
+    likes_all_sub = db.session.query(
+        Like.post_id.label("post_id"),
+        func.count(Like.id).label("likes_count")
+    ).group_by(Like.post_id).subquery()
+
+    likes_me_sub = None
+    if current_user_id:
+        likes_me_sub = db.session.query(
+            Like.post_id.label("post_id"),
+            func.count(Like.id).label("liked")
+        ).filter(Like.user_id == current_user_id).group_by(Like.post_id).subquery()
+
+    # Comments
+    comments_count_sub = db.session.query(
+        Comment.post_id.label("post_id"),
+        func.count(Comment.id).label("comments_count")
+    ).filter(Comment.is_deleted==False).group_by(Comment.post_id).subquery()
+
+    # Reposts
+    reposts_count_sub = db.session.query(
+        Post.parent_post_id.label("post_id"),
+        func.count(Post.id).label("reposts_count")
+    ).filter(Post.is_deleted==False, Post.parent_post_id!=None).group_by(Post.parent_post_id).subquery()
+
+    # Images
+    images_sub = db.session.query(
+        PostImage.post_id.label("post_id"),
+        func.json_agg(
+            func.json_build_object(
+                "url", PostImage.file_path,
+                "position", PostImage.position,
+                "width", PostImage.width,
+                "height", PostImage.height
+            )
+        ).label("images")
+    ).group_by(PostImage.post_id).subquery()
+
+    # Main query
+    q = db.session.query(
+        Post,
+        func.coalesce(likes_all_sub.c.likes_count, 0).label("likes_count"),
+        func.coalesce(comments_count_sub.c.comments_count, 0).label("comments_count"),
+        func.coalesce(reposts_count_sub.c.reposts_count, 0).label("reposts_count"),
+        func.coalesce(likes_me_sub.c.liked, 0).label("liked_by_me") if likes_me_sub is not None else literal(False).label("liked_by_me"),
+        images_sub.c.images
+    ).outerjoin(likes_all_sub, likes_all_sub.c.post_id == Post.id
+    ).outerjoin(comments_count_sub, comments_count_sub.c.post_id == Post.id
+    ).outerjoin(reposts_count_sub, reposts_count_sub.c.post_id == Post.id
+    ).outerjoin(images_sub, images_sub.c.post_id == Post.id
+    )
+
+    if likes_me_sub is not None:
+        q = q.outerjoin(likes_me_sub, likes_me_sub.c.post_id == Post.id)
+
+    q = q.filter(Post.is_deleted == False, Post.user_id == user_id).order_by(Post.created_at.desc())
+
+    posts = q.all()
+
+    author = None
+    r = requests.post(f"{USER_SERVICE_URL}/users/batch", json={"ids": [user_id]}, timeout=3)
+    if r.ok and r.json():
+        u = r.json()[0]
+        author = {
+            "user_id": u["id"],
+            "username": u["username"],
+            "user_avatar": u["avatar_url"],
+            "avatar_width": u["avatar_width"],
+            "avatar_height": u["avatar_height"]
+        }
+
+    result = []
+    for post, likes_count, comments_count, reposts_count, liked_by_me, images in posts:
+        images_sorted = sorted(images or [], key=lambda x: x["position"]) if images else []
+        result.append({
+            "id": post.id,
+            "author": author,
+            "text": post.text,
+            "created_at": post.created_at.isoformat(),
+            "counts": {
+                "likes": likes_count,
+                "comments": comments_count,
+                "reposts": reposts_count
+            },
+            "images": images_sorted,
+            "is_liked": bool(liked_by_me)
+        })
+
+    return jsonify(result), 200
+
+
 @bp.route('/posts/<int:post_id>', methods=['DELETE'])
 def delete_post(post_id):
     user = validate_user(request.headers.get("Authorization"))
@@ -314,13 +410,37 @@ def create_comment():
 
 @bp.route('/comments', methods=['GET'])
 def list_comments():
-    post_id = request.args.get("post_id")
+    post_id = request.args.get("post_id", type=int)
     if not post_id:
         return jsonify({"error": "post_id required"}), 400
 
     comments = Comment.query.filter_by(post_id=post_id, is_deleted=False).order_by(Comment.created_at.asc()).all()
 
-    return jsonify([{"id": c.id, "user_id": c.user_id, "text": c.text, "created_at": c.created_at.isoformat()} for c in comments]), 200
+    user_ids = list({c.user_id for c in comments})
+    users_by_id = {}
+
+    if user_ids:
+        r = requests.post(f"{USER_SERVICE_URL}/users/batch", json={"ids": user_ids}, timeout=3)
+        if r.ok:
+            for u in r.json():
+                users_by_id[int(u["id"])] = {
+                    "user_id": u["id"],
+                    "username": u["username"],
+                    "avatar_url": u["avatar_url"],
+                    "avatar_width": u["avatar_width"],
+                    "avatar_height": u["avatar_height"],
+                }
+
+    result = []
+    for c in comments:
+        result.append({
+            "id": c.id,
+            "text": c.text,
+            "created_at": c.created_at.isoformat(),
+            "author": users_by_id.get(c.user_id)
+        })
+
+    return jsonify(result), 200
 
 @bp.route('/comments/<int:comment_id>', methods=['DELETE'])
 def delete_comment(comment_id):
