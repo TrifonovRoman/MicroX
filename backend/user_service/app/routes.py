@@ -13,8 +13,8 @@ import os
 bp = Blueprint('user', __name__)
 logging.basicConfig(level=logging.INFO)
 
-# POST /users - регистрация
-@bp.route("/users", methods=["POST"])
+# POST /register - регистрация
+@bp.route("/auth/register", methods=["POST"])
 def register():
     data = request.get_json()
     username = data["username"]
@@ -72,7 +72,8 @@ def login():
         "refresh_token",
         refresh,
         httponly=True,
-        samesite="Strict",
+        max_age=60*60*24*7,
+        samesite="Lax",
         secure=False  # True в HTTPS
     )
 
@@ -107,6 +108,20 @@ def refresh():
 
     return jsonify({"access_token": access}), 200
 
+# POST /auth/logout
+@bp.route("/auth/logout", methods=["POST"])
+def logout():
+    refresh_token = request.cookies.get("refresh_token")
+    if refresh_token:
+        token = RefreshToken.query.filter_by(token=refresh_token).first()
+        if token:
+            token.revoked = True
+            db.session.commit()
+
+    response = jsonify({"message": "logged out"})
+    response.delete_cookie("refresh_token")
+    return response, 200
+
 # GET /users/me
 @bp.route("/users/me", methods=["GET"])
 @jwt_required
@@ -131,20 +146,6 @@ def get_user(user_id):
         return jsonify({"error": "user not found"}), 404
     return jsonify({"id": user.id, "username": user.username,
                     "display_name": user.display_name, "created_at": user.created_at.isoformat()}), 200
-
-# POST /auth/logout
-@bp.route("/auth/logout", methods=["POST"])
-def logout():
-    refresh_token = request.cookies.get("refresh_token")
-    if refresh_token:
-        token = RefreshToken.query.filter_by(token=refresh_token).first()
-        if token:
-            token.revoked = True
-            db.session.commit()
-
-    response = jsonify({"message": "logged out"})
-    response.delete_cookie("refresh_token")
-    return response, 200
 
 @bp.route("/users/me/avatar", methods=["POST"])
 @jwt_required

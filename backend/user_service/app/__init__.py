@@ -3,6 +3,7 @@ from .database import db
 from flask_migrate import Migrate
 import os
 from dotenv import load_dotenv
+from flask_cors import CORS
 
 load_dotenv()
 migrate = Migrate()

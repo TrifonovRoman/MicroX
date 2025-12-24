@@ -41,6 +41,17 @@ services:
     ports:
       - "5001:5000"
 
+  gateway:
+    image: nginx:alpine
+    container_name: gateway
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - user_service
+      - post_service
+
 volumes:
   user_db_data:
   post_db_data:

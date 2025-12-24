@@ -184,13 +184,14 @@ def list_posts():
         result.append({
             "id": post.id,
             "text": post.text,
+            "created_at": post.created_at.isoformat(),
             "counts": {
                 "likes": likes_count,
                 "comments": comments_count,
                 "reposts": reposts_count
             },
             "images": images_sorted,
-            "liked_by_me": bool(liked_by_me)
+            "is_liked": bool(liked_by_me)
         })
 
     return jsonify(result), 200
@@ -211,16 +212,11 @@ def delete_post(post_id):
     db.session.commit()
     return "", 204
 
-@bp.route('/likes', methods=['POST'])
-def like_post():
+@bp.route('/likes/<int:post_id>', methods=['POST'])
+def like_post(post_id):
     user = validate_user(request.headers.get("Authorization"))
     if not user:
         return jsonify({"error": "unauthorized"}), 401
-
-    data = request.get_json() or {}
-    post_id = data.get("post_id")
-    if not post_id:
-        return jsonify({"error": "post_id required"}), 400
 
     post = Post.query.get(post_id)
     if not post or post.is_deleted:
@@ -232,19 +228,15 @@ def like_post():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"error": "already liked"}), 409 
+        return jsonify({"error": "already liked"}), 409
 
     return "", 201
 
-@bp.route('/likes', methods=['DELETE'])
-def unlike_post():
+@bp.route('/likes/<int:post_id>', methods=['DELETE'])
+def unlike_post(post_id):
     user = validate_user(request.headers.get("Authorization"))
     if not user:
         return jsonify({"error": "unauthorized"}), 401
-
-    post_id = request.args.get("post_id")
-    if not post_id:
-        return jsonify({"error": "post_id required"}), 400
 
     like = Like.query.filter_by(user_id=user["id"], post_id=post_id).first()
     if not like:
@@ -252,7 +244,6 @@ def unlike_post():
 
     db.session.delete(like)
     db.session.commit()
-
     return "", 204
 
 @bp.route('/comments', methods=['POST'])
