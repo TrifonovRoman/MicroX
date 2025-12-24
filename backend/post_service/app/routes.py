@@ -3,6 +3,7 @@ from .database import db
 from .models import Post, Like, Comment, PostImage
 from .client import validate_user
 from sqlalchemy import func, desc
+from PIL import Image
 import logging
 import os
 from sqlalchemy.exc import IntegrityError
@@ -41,7 +42,10 @@ def create_post():
 
     saved_images = []
     if images:
-        post_dir = os.path.join("uploads/posts", str(post.id))
+        MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "/media")
+        MEDIA_URL = os.environ.get("MEDIA_URL", "/media")
+
+        post_dir = os.path.join(MEDIA_ROOT, "posts", str(post.id))
         os.makedirs(post_dir, exist_ok=True)
 
         for i, file in enumerate(images):
@@ -53,13 +57,25 @@ def create_post():
             path = os.path.join(post_dir, filename)
             file.save(path)
 
+            with Image.open(path) as img:
+                img_width, img_height = img.size
+
+            public_url = f"{MEDIA_URL}/posts/{post.id}/{filename}"
+
             img = PostImage(
                 post_id=post.id,
-                file_path=f"/static/posts/{post.id}/{filename}",
-                position=i
+                file_path=public_url,
+                position=i,
+                width=img_width,
+                height=img_height
             )
             db.session.add(img)
-            saved_images.append(img.file_path)
+            saved_images.append({
+                "url": public_url,
+                "position": i,
+                "width": img_width,
+                "height": img_height
+            })
 
     db.session.commit()
 
@@ -84,7 +100,9 @@ def get_post(post_id):
     reposts = db.session.query(func.count(Post.id)).filter(Post.parent_post_id == post_id, Post.is_deleted == False).scalar()
     images = db.session.query(
         PostImage.file_path,
-        PostImage.position
+        PostImage.position,
+        PostImage.width,
+        PostImage.height
     ).filter(   
         PostImage.post_id == post_id
     ).order_by(PostImage.position).all()
@@ -101,8 +119,8 @@ def get_post(post_id):
             "reposts": reposts
         },
         "images": [
-            {"url": path, "position": pos}
-            for path, pos in images
+            {"url": path, "position": pos, "width": w, "height": h}
+            for path, pos, w, h in images
         ]
     }
 

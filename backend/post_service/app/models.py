@@ -42,6 +42,8 @@ class PostImage(db.Model):
     post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), nullable=False)
     file_path = db.Column(db.Text, nullable=False)
     position = db.Column(db.Integer, nullable=False)
+    width = db.Column(db.Integer, nullable=True)
+    height = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=now_utc)
 
     __table_args__ = (

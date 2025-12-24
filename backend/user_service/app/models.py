@@ -9,6 +9,8 @@ class User(db.Model):
     display_name = db.Column(db.Text)
     bio = db.Column(db.Text)
     avatar_url = db.Column(db.Text)
+    avatar_width = db.Column(db.Integer, nullable=True)
+    avatar_height = db.Column(db.Integer, nullable=True)
     password_hash = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 

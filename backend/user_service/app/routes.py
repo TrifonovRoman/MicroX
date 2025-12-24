@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from werkzeug.utils import secure_filename
 from .models import User, RefreshToken
 from .database import db
+from PIL import Image
 from .utils import create_access_token, create_refresh_token, jwt_required, get_jwt_config
 import bcrypt
 import logging
@@ -135,7 +136,9 @@ def get_me():
         "username": user.username,
         "display_name": user.display_name,
         "bio": user.bio,
-        "avatar_url": user.avatar_url
+        "avatar_url": user.avatar_url,
+        "avatar_width": user.avatar_width,
+        "avatar_height": user.avatar_height
     }), 200
 
 # GET /users/{id}
@@ -144,8 +147,16 @@ def get_user(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "user not found"}), 404
-    return jsonify({"id": user.id, "username": user.username,
-                    "display_name": user.display_name, "created_at": user.created_at.isoformat()}), 200
+    return jsonify({
+        "id": user.id,
+        "username": user.username,
+        "display_name": user.display_name,
+        "bio": user.bio,
+        "avatar_url": user.avatar_url,
+        "avatar_width": user.avatar_width,
+        "avatar_height": user.avatar_height,
+        "created_at": user.created_at.isoformat()
+    }), 200
 
 @bp.route("/users/me/avatar", methods=["POST"])
 @jwt_required
@@ -167,12 +178,26 @@ def upload_avatar():
     file.seek(0)
 
     filename = f"{uuid.uuid4()}.{ext}"
-    path = os.path.join("uploads/avatars", filename)
-    os.makedirs("uploads/avatars", exist_ok=True)
+    MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "/media")
+    MEDIA_URL = os.environ.get("MEDIA_URL", "/media")
+
+    avatar_dir = os.path.join(MEDIA_ROOT, "avatars")
+    os.makedirs(avatar_dir, exist_ok=True)
+
+    path = os.path.join(avatar_dir, filename)
     file.save(path)
 
+    with Image.open(path) as img:
+        width, height = img.size
+
     user = User.query.get(request.user["sub"])
-    user.avatar_url = f"/static/avatars/{filename}"
+    user.avatar_url = f"{MEDIA_URL}/avatars/{filename}"
+    user.avatar_width = width
+    user.avatar_height = height
     db.session.commit()
 
-    return jsonify({"avatar_url": user.avatar_url}), 200
+    return jsonify({
+        "avatar_url": user.avatar_url,
+        "width": width,
+        "height": height
+    }), 200
