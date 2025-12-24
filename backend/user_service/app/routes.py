@@ -138,7 +138,8 @@ def get_me():
         "bio": user.bio,
         "avatar_url": user.avatar_url,
         "avatar_width": user.avatar_width,
-        "avatar_height": user.avatar_height
+        "avatar_height": user.avatar_height,
+        "created_at": user.created_at.isoformat()
     }), 200
 
 # GET /users/{id}
@@ -157,6 +158,20 @@ def get_user(user_id):
         "avatar_height": user.avatar_height,
         "created_at": user.created_at.isoformat()
     }), 200
+
+@bp.route("/users/batch", methods=["POST"])
+def batch_users():
+    data = request.get_json() or {}
+    ids = data.get("ids", [])
+    users = User.query.filter(User.id.in_(ids)).all()
+    return jsonify([{
+        "id": u.id,
+        "username": u.username,
+        "display_name": u.display_name,
+        "avatar_url": u.avatar_url,
+        "avatar_width": u.avatar_width,
+        "avatar_height": u.avatar_height,
+    } for u in users])
 
 @bp.route("/users/me/avatar", methods=["POST"])
 @jwt_required

@@ -1,12 +1,15 @@
 from flask import Blueprint, request, jsonify
-from .database import db
-from .models import Post, Like, Comment, PostImage
-from .client import validate_user
+from collections import defaultdict
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func, desc
 from PIL import Image
+from .database import db
+from .models import Post, Like, Comment, PostImage
+from .client import validate_user, USER_SERVICE_URL
 import logging
 import os
-from sqlalchemy.exc import IntegrityError
+import requests
+
 
 bp = Blueprint('posts', __name__)
 logging.basicConfig(level=logging.INFO)
@@ -109,7 +112,6 @@ def get_post(post_id):
 
     result = {
         "id": post.id,
-        "user_id": post.user_id,
         "text": post.text,
         "parent_post_id": post.parent_post_id,
         "created_at": post.created_at.isoformat(),
@@ -123,15 +125,15 @@ def get_post(post_id):
             for path, pos, w, h in images
         ]
     }
-
-    if request.args.get("expand") == "author":
-        from .client import USER_SERVICE_URL
-        try:
-            r = requests.get(f"{USER_SERVICE_URL}/users/{post.user_id}", timeout=2)
-            if r.ok:
-                result["author"] = r.json()
-        except:
-            pass
+    r = requests.get(f"{USER_SERVICE_URL}/users/{post.user_id}", timeout=2)
+    user_info = r.json()
+    result["author"] = {
+        "user_id": post.user_id,
+        "username": user_info["username"],
+        "avatar_url": user_info["avatar_url"],
+        "avatar_width": user_info["avatar_width"],
+        "avatar_height": user_info["avatar_height"],
+    }
 
     return jsonify(result), 200
 
@@ -170,7 +172,9 @@ def list_posts():
         func.json_agg(
             func.json_build_object(
                 "url", PostImage.file_path,
-                "position", PostImage.position
+                "position", PostImage.position,
+                "width", PostImage.width,
+                "height", PostImage.height
             )
         ).label("images")
     ).group_by(PostImage.post_id).subquery()
@@ -195,12 +199,34 @@ def list_posts():
     q = q.filter(Post.is_deleted == False).order_by(Post.created_at.desc())
 
     posts = q.all()
+    user_ids = list({post.user_id for post, *_ in posts})
+
+    users_by_id = {}
+
+    if user_ids:
+        r = requests.post(f"{USER_SERVICE_URL}/users/batch", json={"ids": user_ids}, timeout=3)
+        if r.ok:
+            for u in r.json():
+                users_by_id[int(u["id"])] = {
+                    "username": u["username"],
+                    "avatar_url": u["avatar_url"],
+                    "avatar_width": u["avatar_width"],
+                    "avatar_height": u["avatar_height"],
+                }
 
     result = []
     for post, likes_count, comments_count, reposts_count, liked_by_me, images in posts:
         images_sorted = sorted(images or [], key=lambda x: x["position"]) if images else []
+        author = users_by_id.get(post.user_id)
         result.append({
             "id": post.id,
+            "author": {
+                "user_id": post.user_id,
+                "username": author["username"] if author else None,
+                "user_avatar": author["avatar_url"] if author else None,
+                "avatar_width": author["avatar_width"] if author else None,
+                "avatar_height": author["avatar_height"] if author else None,
+            },
             "text": post.text,
             "created_at": post.created_at.isoformat(),
             "counts": {
