@@ -6,8 +6,10 @@ const Home = () => {
     return (
         <>
         <Header title="Главная" />
+        <div className="main-content-line">
+            <PostList />
+        </div>
 
-        <PostList />
 
 
 

@@ -2,50 +2,111 @@ import { observer } from "mobx-react-lite"
 import Avatar from "../components/Avatar"
 import Divider from "../components/Divider"
 import PostList from "../components/PostList"
+import {useContext, useEffect, useState} from "react";
+import {Context} from "../index";
+import {useNavigate, useParams} from "react-router-dom";
+import Skeleton from "../components/Skeleton";
+import Header from "../components/Header";
+import {useNavigateBack} from "../components/useNavigateBack";
 
-
-const Profile = () => {
+const Lightbox = ({ image, onClose }) => {
     return (
-        <div className="container">
-            <div class="profile-avatar-container d-flex justify-content-center">
-                <div>
-                    <Avatar username="admin" size="md"/>
-                </div>
-            </div>
-
-            <div className="profile-info">
-                <h2 className="profile-name text-center mb-0 text-bold">Алексей Иванов</h2>
-                <div className="profile-username text-center text-muted">@alex.ivanov</div>
-                <div className="profile-bio mt-3 mb-4 text-center text-muted">
-                    Разработчик полного стека с 8-летним опытом. Специализируюсь на React, Node.js и облачных технологиях. 
-                    Люблю открытый исходный код, путешествия и хороший кофе. Автор блога о веб-разработке.
-                </div>
-                <Divider />
-                <div className="profile-stats row mb-3 mt-4">
-                    <div className="stat-item col-3 d-flex flex-column text-center">
-                        <span className="stat-number text-bold fs-4">127</span>
-                        <span className="stat-label">Постов</span>
-                    </div>
-                    <div className="stat-item col-3 d-flex flex-column text-center">
-                        <span className="stat-number text-bold fs-4">5.2K</span>
-                        <span className="stat-label small">Подписчиков</span>
-                    </div>
-                    <div className="stat-item col-3 d-flex flex-column text-center">
-                        <span className="stat-number text-bold fs-4">892</span>
-                        <span className="stat-label small">Подписок</span>
-                    </div>
-                    <div className="stat-item col-3 d-flex flex-column text-center">
-                        <span className="stat-number text-bold fs-4">43</span>
-                        <span className="stat-label small">Репортов</span>
-                    </div>
-                </div>
-
-                <div className="mt-5">
-                    <h2>Список постов</h2>
-                    <PostList />
-                </div>
+        <div className="post-lightbox-overlay w-100 h-100" onClick={onClose}>
+            <div className="post-lightbox-content" onClick={(e) => e.stopPropagation()}>
+                <img src={image} alt="Full size" className="post-lightbox-img" />
+                <button className="post-lightbox-close" onClick={onClose}>
+                    <i className="bi bi-x"></i>
+                </button>
             </div>
         </div>
+    );
+};
+
+const Profile = () => {
+    const {store} = useContext(Context)
+    const { id } = useParams();
+    const [info, setInfo] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isNotFound, setIsNotFound] = useState(false);
+    const [avatarLightbox, setAvatarLightbox] = useState(null);
+    const goBack = useNavigateBack('/');
+    const navigate = useNavigate()
+
+    useEffect(() => {
+        const fetchProfileInfo = async () => {
+            setIsLoading(true)
+            setIsNotFound(false)
+            try {
+                if (id < 0) {
+                    setIsNotFound(true)
+                }
+                const response = await store.getProfileInfo(parseInt(id, 10))
+                setInfo(response)
+            } catch (e) {
+                setIsNotFound(true)
+                console.error("Failed to fetch user profile: ", e)
+            }
+
+            setIsLoading(false)
+        }
+
+        fetchProfileInfo()
+    }, [store.id]);
+
+    const editProfileHandler = () => {
+        navigate("/profile/edit", {replace: true})
+    }
+
+
+    if (isNotFound) {
+        return (
+            <>
+                <Header leftIcon="bi-arrow-left" onClickLeft={goBack} title="Произошла ошибка"/>
+                <div className="fs-1">Профиль не был найден</div>
+            </>
+        )
+    }
+
+    const avatarUrl = info?.avatar_url ? `http://127.0.0.1:8000${info.avatar_url}` : null;
+
+    return (
+        <>
+            <Header leftIcon="bi-arrow-left" onClickLeft={goBack} title={info?.username || "Профиль"} rightIcon="bi-pen" onClickRight={editProfileHandler}/>
+            <div className="main-content-line">
+                <div className="d-flex row pt-4 px-4">
+                    <div className="profile-info left d-flex flex-column col-6 pt-3">
+                        <Skeleton className="text-left mb-0 mt-2" isLoading={isLoading} width={150} height={30}>
+                            <h3 className="profile-name mb-0 text-bold">{info?.username}</h3>
+                        </Skeleton>
+                        <Skeleton className="mt-1" isLoading={isLoading} width={110} height={20}>
+                            <div className="profile-username">@{info?.username}</div>
+                        </Skeleton>
+                        <Skeleton className="mt-3 mb-4" isLoading={isLoading} width="40vh" height={20}>
+                            <div className="profile-bio mt-3 mb-4">
+                                {info?.bio || "Пока ничего не написано"}
+                            </div>
+                        </Skeleton>
+                    </div>
+
+                    <div className="profile-avatar-container d-flex justify-content-end col-6">
+                        <div onClick={() => avatarUrl && setAvatarLightbox(avatarUrl)}>
+                            <Skeleton isLoading={isLoading} width={80} height={80} borderRadius="50px">
+                                <Avatar username={info?.username} size="md" url={info?.avatar_url}/>
+                            </Skeleton>
+                        </div>
+                    </div>
+                </div>
+                <hr className="w-100 my-0 mx-auto"/>
+                <div>
+                    <h5 className="py-4 ps-4">Посты</h5>
+                    <PostList userId={id} isAllPosts={0}/>
+                </div>
+                {avatarLightbox && (
+                    <Lightbox image={avatarLightbox} onClose={() => setAvatarLightbox(null)} />
+                )}
+            </div>
+        </>
+
     )
 }
 

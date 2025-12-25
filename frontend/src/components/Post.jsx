@@ -1,68 +1,166 @@
-import {useState} from "react"
+import {useContext, useState} from "react"
 import { observer } from "mobx-react-lite"
 import Avatar from "./Avatar"
+import {Context} from "../index";
+import PostMedia from "./PostMedia.tsx";
+import {Link, useNavigate} from "react-router-dom";
 
 
 
-const Post = () => {
-    const [post, setPost] = useState({
-        "username": "admin",
-        "tag": "@admin",
-        "title": "Some title",
-        "content": "content text bla bla bla",
-        "likes_count": 5,
-        "comments_count": 24,
-        "reposts_count": 10,
-        "is_liked": true
-    });
+const Post = ({post, setPosts, setPost}) => {
+    const {store} = useContext(Context)
+    const navigate = useNavigate()
+    // const [post, setPost] = useState({
+    //     "username": "admin",
+    //     "tag": "@admin",
+    //     "title": "Some title",
+    //     "content": "content text bla bla bla",
+    //     "likes_count": 5,
+    //     "comments_count": 24,
+    //     "reposts_count": 10,
+    //     "is_liked": true
+    // });
+
+
+    function formatDateTime(isoString) {
+        const date = new Date(isoString);
+
+        if (isNaN(date.getTime())) {
+            return '—';
+        }
+
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // getMonth() возвращает 0–11
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+
+        return `${day}.${month}.${year} ${hours}:${minutes}`;
+    }
+
+    const handleLike = async (e) => {
+        e.stopPropagation()
+        try {
+            if (post.is_liked) {
+                await store.unlikePost(post.id)
+            } else {
+                await store.likePost(post.id)
+            }
+            handleLikeView()
+        } catch (e) {
+            console.log("error via like")
+        }
+    }
+
+    const handleRepostClick = (e) => {
+        e.stopPropagation();
+
+    }
     
-    const handleLike = () => {
-        setPost(prev => ({
-            ...prev,
-            is_liked: !prev.is_liked,
-            likes_count: prev.is_liked ? prev.likes_count - 1 : prev.likes_count + 1
-        }));
+    const handleLikeView = () => {
+        if (setPost) {
+            setPost(prev => ({
+                ...prev,
+                is_liked: !prev.is_liked,
+                counts: {
+                    ...prev.counts,
+                    likes: prev.is_liked ? prev.counts.likes - 1 : prev.counts.likes + 1
+                }
+            }));
+            return;
+        }
+
+        // Иначе — обновляем список
+        if (setPosts) {
+            setPosts(prevPosts =>
+                prevPosts.map(p =>
+                    p.id === post.id
+                        ? {
+                            ...p,
+                            is_liked: !p.is_liked,
+                            counts: {
+                                ...p.counts,
+                                likes: p.is_liked ? p.counts.likes - 1 : p.counts.likes + 1
+                            }
+                        }
+                        : p
+                )
+            );
+        }
+
+    };
+
+    const handlePostClick = (e) => {
+        e.stopPropagation();
+        navigate(`/posts/${post.id}`);
+    };
+
+    const handleMediaClick = (e) => {
+        e.stopPropagation();
     };
     
     
     return (
-        <div className="post d-flex gap-3 my-3 py-3 pe-3 w-100 shadow-1">
-            <div className="post-sidebar">
-                <Avatar username="admin"/>
+        <div className="post d-flex py-2 px-4 w-100" onClick={handlePostClick}>
+            <div className="post-sidebar pt-2">
+                <Link to={`/profile/${post.author.user_id}`} onClick={(e) => e.stopPropagation()}>
+                    <Avatar username={post.author.username} id={post.author.user_id} url={post.author.user_avatar}/>
+                </Link>
             </div>
-            <div className="w-100">
-                <div className="post-header pt-1 justify-content-between d-flex w-100">
-                    <div className="d-flex gap-1 align-items-end">
-                        <span className="post-username text-bold">
-                            {post.username}
-                        </span>
-                        <span className="post-tag small text-muted" style={{paddingBottom:"1px"}}>
-                            {post.tag}
-                        </span>
+            <div className="w-100 ps-2">
+                <div className="post-header justify-content-between d-flex w-100">
+                    <div className="d-flex gap-1 align-items-center">
+                        <Link
+                            className="post-username text-bold text-color"
+                            to={`/profile/${post.author.user_id}`}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {post.author.username}
+                        </Link>
+                        {/*<span className="post-tag small text-muted m-0">*/}
+                        {/*    {post.author.username}*/}
+                        {/*</span>*/}
                     </div>
                     <span className="post-time small text-muted">
-                        Сейчас
+                        {formatDateTime(post.created_at)}
                     </span>
                 </div>
-                <div className="post-body my-3">
-                    <h4>{post.title}</h4>
-                    <p>{post.content}</p>
+                <div className="post-body me-3">
+                    <p>{post.text}</p>
+                    <div onClick={handleMediaClick}>
+                        <PostMedia images={post.images} />
+                    </div>
+
                 </div>
-                <div className="post-footer ms-auto mt-3">
-                    <div className="d-flex justify-content-around align-content-center gap-1">
-                        <div className="post-footer-item">
-                            <i onClick={handleLike} class={`like-icon bi bi-heart${post.is_liked ? "-fill active-like" : ""} `}></i>
-                            <span className="text-muted ps-1">{post.likes_count}</span>
+                <div className="post-footer mt-3">
+                    <div className="d-flex align-content-center gap-4">
+                        <div className="post-footer-item" onClick={handleLike}>
+                            <i className={`like-icon bi bi-heart${post.is_liked ? "-fill active-like" : ""} `}></i>
+                            {post.counts.likes === 0 ? (
+                                <span className="text-muted ps-1 d-none">0</span>
+                            ): (
+                                <span className="text-muted ps-1">{post.counts.likes}</span>
+                            )}
 
                         </div>
                         <div className="post-footer-item">
                             <i className="icon bi bi-chat"></i>
-                            <span className="text-muted ps-1">{post.comments_count}</span>
+                            {post.counts.comments === 0 ? (
+                                <span className="text-muted ps-1 d-none">0</span>
+                            ): (
+                                <span className="text-muted ps-1">{post.counts.comments}</span>
+                            )}
+
 
                         </div>
                         <div className="post-footer-item">
-                            <i class="icon bi bi-arrow-repeat"></i>
-                            <span className="text-muted ps-1">{post.reposts_count}</span>
+                            <i className="icon bi bi-arrow-repeat"></i>
+                            {post.counts.reposts === 0 ? (
+                                <span className="text-muted ps-1 d-none">0</span>
+                            ): (
+                                <span className="text-muted ps-1">{post.counts.reposts}</span>
+                            )}
+
 
                         </div>
                     </div>

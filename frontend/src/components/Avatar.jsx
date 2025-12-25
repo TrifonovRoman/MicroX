@@ -1,15 +1,28 @@
 import { Link } from "react-router-dom"
 
 
-const Avatar = ({username="default", id=0, size="sm", ...props}) => {
+const Avatar = ({username="default", size="sm", url, isLocal=false, ...props}) => {
+    const sizeClass = `user-avatar-${size}`;
+    if (url) {
+        return (
+            <div className={sizeClass}>
+                <img
+                    src={isLocal ? url : `http://127.0.0.1:8000${url}`}
+                    alt={`${username} avatar`}
+                    loading="lazy"
+                    draggable={false}
+                    className="user-avatar-img"
+                />
+            </div>
+        )
+    }
+
     return (
-        <Link to={`/profile/${id}`} className="text-decoration-none">
-            <div {...props} className={"user-avatar-" + size}>
-                <div className="user-avatar-inner shadow ">
+            <div className={sizeClass}>
+                <div className={`user-avatar-fallback`}>
                     <span className="text-bold">{username.charAt(0).toLocaleUpperCase()}</span>
                 </div>
             </div>
-        </Link>
     )
 }
 
