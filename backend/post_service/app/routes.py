@@ -229,6 +229,7 @@ def list_posts():
             },
             "text": post.text,
             "created_at": post.created_at.isoformat(),
+            "parent_post_id": post.parent_post_id,
             "counts": {
                 "likes": likes_count,
                 "comments": comments_count,
