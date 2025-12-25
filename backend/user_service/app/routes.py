@@ -22,10 +22,10 @@ def register():
     password = data["password"]
 
     if not username or not password:
-        return jsonify({"error": "username and password required"}), 400
+        return jsonify({"error": "Требуется имя пользователя и пароль"}), 400
 
     if User.query.filter_by(username=username).first():
-        return jsonify({"error": "username taken"}), 400
+        return jsonify({"error": "Имя пользователя занято"}), 400
 
     password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     user = User(username=username, password_hash=password_hash)
@@ -47,11 +47,11 @@ def login():
     password = data.get("password")
 
     if not username or not password:
-        return jsonify({"error": "username and password required"}), 400
+        return jsonify({"error": "Требуется имя пользователя и пароль"}), 400
 
     user = User.query.filter_by(username=username).first()
     if not user or not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
-        return jsonify({"error": "invalid credentials"}), 401
+        return jsonify({"error": "Неверное имя пользователя или пароль"}), 401
 
     access = create_access_token(user)
     refresh = create_refresh_token(user)
@@ -85,16 +85,16 @@ def refresh():
     JWT_SECRET, JWT_ALGORITHM, ACCESS_EXPIRES, REFRESH_EXPIRES = get_jwt_config()
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
-        return jsonify({"error": "not authenticated"}), 401
+        return jsonify({"error": "Не аутентифицирован"}), 401
 
     try:
         payload = jwt.decode(refresh_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         if payload.get("type") != "refresh":
             raise jwt.InvalidTokenError()
     except jwt.ExpiredSignatureError:
-        return jsonify({"error": "refresh expired"}), 401
+        return jsonify({"error": "Срок токена обновления истек"}), 401
     except jwt.InvalidTokenError:
-        return jsonify({"error": "invalid refresh"}), 401
+        return jsonify({"error": "Недействительный токен обновления"}), 401
 
     token_db = RefreshToken.query.filter_by(
         token=refresh_token,
@@ -102,7 +102,7 @@ def refresh():
     ).first()
 
     if not token_db:
-        return jsonify({"error": "refresh revoked"}), 401
+        return jsonify({"error": "Токен обновления отозван"}), 401
 
     user = User.query.get(payload["sub"])
     access = create_access_token(user)
@@ -119,7 +119,7 @@ def logout():
             token.revoked = True
             db.session.commit()
 
-    response = jsonify({"message": "logged out"})
+    response = jsonify({"message": "Вышел из системы"})
     response.delete_cookie("refresh_token")
     return response, 200
 
@@ -129,7 +129,7 @@ def logout():
 def get_me():
     user = User.query.get(request.user["sub"])
     if not user:
-        return jsonify({"error": "user not found"}), 404
+        return jsonify({"error": "Пользователь не найден"}), 404
 
     return jsonify({
         "id": user.id,
@@ -147,7 +147,7 @@ def get_me():
 def get_user(user_id):
     user = User.query.get(user_id)
     if not user:
-        return jsonify({"error": "user not found"}), 404
+        return jsonify({"error": "Пользователь не найден"}), 404
     return jsonify({
         "id": user.id,
         "username": user.username,
@@ -177,19 +177,19 @@ def batch_users():
 @jwt_required
 def upload_avatar():
     if "file" not in request.files:
-        return jsonify({"error": "file required"}), 400
+        return jsonify({"error": "Требуется файл"}), 400
 
     file = request.files["file"]
     if file.filename == "":
-        return jsonify({"error": "empty filename"}), 400
+        return jsonify({"error": "Пустое имя файла"}), 400
 
     ext = file.filename.rsplit(".", 1)[-1].lower()
     if ext not in {"png", "jpg", "jpeg", "webp"}:
-        return jsonify({"error": "invalid file type"}), 400
+        return jsonify({"error": "Неверный тип файла"}), 400
 
     file.seek(0, os.SEEK_END)
     if file.tell() > 2 * 1024 * 1024:
-        return jsonify({"error": "file too large"}), 400
+        return jsonify({"error": "Файл слишком большой"}), 400
     file.seek(0)
 
     filename = f"{uuid.uuid4()}.{ext}"

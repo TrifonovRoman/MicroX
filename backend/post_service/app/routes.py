@@ -18,22 +18,22 @@ logging.basicConfig(level=logging.INFO)
 def create_post():
     user = validate_user(request.headers.get("Authorization"))
     if not user:
-        return jsonify({"error": "unauthorized"}), 401
+        return jsonify({"error": "Неавторизованный"}), 401
 
     text = request.form.get("text")
     parent_id = request.form.get("parent_post_id", type=int)
     images = request.files.getlist("images")
 
     if not text:
-        return jsonify({"error": "text required"}), 400
+        return jsonify({"error": "Требуется текст"}), 400
 
     if images and len(images) > 10:
-        return jsonify({"error": "max 10 images allowed"}), 400
+        return jsonify({"error": "Разрешено максимум 10 изображений"}), 400
 
     if parent_id:
         parent = Post.query.get(parent_id)
         if not parent or parent.is_deleted:
-            return jsonify({"error": "parent not found"}), 404
+            return jsonify({"error": "Родительский пост не найден"}), 404
 
     post = Post(
         user_id=user["id"],
@@ -54,7 +54,7 @@ def create_post():
         for i, file in enumerate(images):
             ext = file.filename.rsplit(".", 1)[-1].lower()
             if ext not in {"png", "jpg", "jpeg", "webp"}:
-                return jsonify({"error": "invalid image type"}), 400
+                return jsonify({"error": "Неверный тип изображения"}), 400
 
             filename = f"{i}.{ext}"
             path = os.path.join(post_dir, filename)
@@ -96,7 +96,7 @@ def create_post():
 def get_post(post_id):
     post = Post.query.get(post_id)
     if not post or post.is_deleted:
-        return jsonify({"error": "not found"}), 404
+        return jsonify({"error": "Пост не найден"}), 404
 
     likes = db.session.query(func.count(Like.id)).filter(Like.post_id == post_id).scalar()
     comments = db.session.query(func.count(Comment.id)).filter(Comment.post_id == post_id, Comment.is_deleted == False).scalar()
@@ -340,13 +340,13 @@ def list_user_posts(user_id):
 def delete_post(post_id):
     user = validate_user(request.headers.get("Authorization"))
     if not user:
-        return jsonify({"error": "unauthorized"}), 401
+        return jsonify({"error": "Неавторизованный"}), 401
 
     post = Post.query.get(post_id)
     if not post or post.is_deleted:
-        return jsonify({"error": "not found"}), 404
+        return jsonify({"error": "Пост не найден"}), 404
     if post.user_id != user["id"]:
-        return jsonify({"error": "forbidden"}), 403
+        return jsonify({"error": "Удаление запрещено"}), 403
 
     post.is_deleted = True
     db.session.commit()
@@ -356,11 +356,11 @@ def delete_post(post_id):
 def like_post(post_id):
     user = validate_user(request.headers.get("Authorization"))
     if not user:
-        return jsonify({"error": "unauthorized"}), 401
+        return jsonify({"error": "Неавторизованный"}), 401
 
     post = Post.query.get(post_id)
     if not post or post.is_deleted:
-        return jsonify({"error": "post not found"}), 404
+        return jsonify({"error": "Пост не найден"}), 404
 
     like = Like(user_id=user["id"], post_id=post_id)
     db.session.add(like)
@@ -368,7 +368,7 @@ def like_post(post_id):
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"error": "already liked"}), 409
+        return jsonify({"error": "Лайк уже поставлен"}), 409
 
     return "", 201
 
@@ -376,11 +376,11 @@ def like_post(post_id):
 def unlike_post(post_id):
     user = validate_user(request.headers.get("Authorization"))
     if not user:
-        return jsonify({"error": "unauthorized"}), 401
+        return jsonify({"error": "Неавторизованный"}), 401
 
     like = Like.query.filter_by(user_id=user["id"], post_id=post_id).first()
     if not like:
-        return jsonify({"error": "not liked"}), 404
+        return jsonify({"error": "Лайк не поставлен"}), 404
 
     db.session.delete(like)
     db.session.commit()
@@ -390,17 +390,17 @@ def unlike_post(post_id):
 def create_comment():
     user = validate_user(request.headers.get("Authorization"))
     if not user:
-        return jsonify({"error": "unauthorized"}), 401
+        return jsonify({"error": "Неавторизованный"}), 401
 
     data = request.get_json() or {}
     post_id = data.get("post_id")
     text = data.get("text")
     if not post_id or not text:
-        return jsonify({"error": "post_id and text required"}), 400
+        return jsonify({"error": "post_id и text обязательны"}), 400
 
     post = Post.query.get(post_id)
     if not post or post.is_deleted:
-        return jsonify({"error": "post not found"}), 404
+        return jsonify({"error": "Пост не найден"}), 404
 
     comment = Comment(user_id=user["id"], post_id=post_id, text=text)
     db.session.add(comment)
@@ -412,7 +412,7 @@ def create_comment():
 def list_comments():
     post_id = request.args.get("post_id", type=int)
     if not post_id:
-        return jsonify({"error": "post_id required"}), 400
+        return jsonify({"error": "Требуется post_id"}), 400
 
     comments = Comment.query.filter_by(post_id=post_id, is_deleted=False).order_by(Comment.created_at.asc()).all()
 
@@ -446,14 +446,14 @@ def list_comments():
 def delete_comment(comment_id):
     user = validate_user(request.headers.get("Authorization"))
     if not user:
-        return jsonify({"error": "unauthorized"}), 401
+        return jsonify({"error": "Неавторизованный"}), 401
 
     comment = Comment.query.get(comment_id)
     if not comment or comment.is_deleted:
-        return jsonify({"error": "not found"}), 404
+        return jsonify({"error": "Комментарий не найден"}), 404
 
     if comment.user_id != user["id"]:
-        return jsonify({"error": "forbidden"}), 403
+        return jsonify({"error": "Удаление запрещено"}), 403
 
     comment.is_deleted = True
     db.session.commit()
