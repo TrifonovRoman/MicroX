@@ -173,46 +173,58 @@ def batch_users():
         "avatar_height": u.avatar_height,
     } for u in users])
 
-@bp.route("/users/me/avatar", methods=["POST"])
+@bp.route("/users/me", methods=["POST"])
 @jwt_required
-def upload_avatar():
-    if "file" not in request.files:
-        return jsonify({"error": "Требуется файл"}), 400
-
-    file = request.files["file"]
-    if file.filename == "":
-        return jsonify({"error": "Пустое имя файла"}), 400
-
-    ext = file.filename.rsplit(".", 1)[-1].lower()
-    if ext not in {"png", "jpg", "jpeg", "webp"}:
-        return jsonify({"error": "Неверный тип файла"}), 400
-
-    file.seek(0, os.SEEK_END)
-    if file.tell() > 2 * 1024 * 1024:
-        return jsonify({"error": "Файл слишком большой"}), 400
-    file.seek(0)
-
-    filename = f"{uuid.uuid4()}.{ext}"
-    MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "/media")
-    MEDIA_URL = os.environ.get("MEDIA_URL", "/media")
-
-    avatar_dir = os.path.join(MEDIA_ROOT, "avatars")
-    os.makedirs(avatar_dir, exist_ok=True)
-
-    path = os.path.join(avatar_dir, filename)
-    file.save(path)
-
-    with Image.open(path) as img:
-        width, height = img.size
-
+def update_profile():
     user = User.query.get(request.user["sub"])
-    user.avatar_url = f"{MEDIA_URL}/avatars/{filename}"
-    user.avatar_width = width
-    user.avatar_height = height
+    if not user:
+        return jsonify({"error": "Пользователь не найден"}), 404
+
+    username = request.form.get("username")
+    display_name = request.form.get("display_name")
+
+    if username:
+        user.username = username
+
+    if display_name:
+        user.display_name = display_name
+
+    file = request.files.get("avatar")
+    if file and file.filename:
+        ext = file.filename.rsplit(".", 1)[-1].lower()
+        if ext not in {"png", "jpg", "jpeg", "webp"}:
+            return jsonify({"error": "Неверный тип файла"}), 400
+
+        file.seek(0, os.SEEK_END)
+        if file.tell() > 2 * 1024 * 1024:
+            return jsonify({"error": "Файл слишком большой"}), 400
+        file.seek(0)
+
+        filename = f"{uuid.uuid4()}.{ext}"
+        MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "/media")
+        MEDIA_URL = os.environ.get("MEDIA_URL", "/media")
+
+        avatar_dir = os.path.join(MEDIA_ROOT, "avatars")
+        os.makedirs(avatar_dir, exist_ok=True)
+
+        path = os.path.join(avatar_dir, filename)
+        file.save(path)
+
+        with Image.open(path) as img:
+            width, height = img.size
+
+        user.avatar_url = f"{MEDIA_URL}/avatars/{filename}"
+        user.avatar_width = width
+        user.avatar_height = height
+
     db.session.commit()
 
     return jsonify({
+        "id": user.id,
+        "username": user.username,
+        "display_name": user.display_name,
         "avatar_url": user.avatar_url,
-        "width": width,
-        "height": height
+        "avatar_width": user.avatar_width,
+        "avatar_height": user.avatar_height,
     }), 200
+
