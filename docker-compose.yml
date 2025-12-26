@@ -61,6 +61,17 @@ services:
       - user_service
       - post_service
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      - user_service
+      - post_service
+
 volumes:
   user_db_data:
   post_db_data:
