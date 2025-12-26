@@ -24,7 +24,6 @@ const Lightbox: React.FC<{ image: string; onClose: () => void }> = ({ image, onC
         </div>
     );
 };
-
 // @ts-ignore
 const PostMedia: React.FC<PostMediaProps> = ({ images }) => {
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -82,8 +81,7 @@ const PostMedia: React.FC<PostMediaProps> = ({ images }) => {
                 </div>
                 {lightboxImage && <Lightbox image={lightboxImage} onClose={() => setLightboxImage(null)} />}
             </>
-
-        )
+        );
     }
 
     const visibleImages = images.slice(0, 4);

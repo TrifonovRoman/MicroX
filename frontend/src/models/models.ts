@@ -29,6 +29,7 @@ export interface Post {
     text:string
     counts:PostCounts
     parent_post_id:number
+    reposted_post: Post
     created_at:string
     is_liked:boolean
 }

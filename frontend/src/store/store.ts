@@ -220,9 +220,10 @@ export default class Store {
         }
     }
 
-    async createPost(formData: FormData): Promise<void> {
+    async createPost(formData: FormData): Promise<Post> {
         try {
-            await PostService.createPost(formData)
+            const response = await PostService.createPost(formData)
+            return response.data
         } catch (e) {
             console.log("Error via creation post: ", e)
             throw e

@@ -28,7 +28,7 @@ const PostPage = () => {
         }
 
         handlePost()
-    }, [store]);
+    }, [store, id]);
 
     if (isLoading) {
         return (

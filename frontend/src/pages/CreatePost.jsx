@@ -1,15 +1,42 @@
 import {observer} from "mobx-react-lite";
 import Header from "../components/Header";
-import React, {useContext, useRef, useState} from "react";
+import React, {useContext, useEffect, useRef, useState} from "react";
 import {Context} from "../index";
+import {useNavigate, useSearchParams} from "react-router-dom";
+import RepostedPost from "../components/RepostedPost.tsx";
 
 
 const CreatePost = () => {
     const [images, setImages] = useState([]);
+    const [subPost, setSubPost] = useState(null);
     const fileInputRef = useRef(null);
     const [text, setText] = useState("")
     const {store} = useContext(Context)
     const [error, setError] = useState("")
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const [isLoading, setIsLoading] = useState(true);
+    const repostId = searchParams.get("repostId");
+
+    useEffect(() => {
+
+        const handlePost = async () => {
+            setIsLoading(true)
+            try {
+                const response = await store.getPostById(parseInt(repostId, 10))
+                setSubPost(response)
+            } catch (e) {
+                console.log("error via fetching post")
+            }
+            setIsLoading(false)
+        }
+        if (repostId) {
+            handlePost()
+        }
+        else {
+            setIsLoading(false)
+        }
+    }, [store, repostId])
 
     const handleImageSelect = (e) => {
         const files = Array.from(e.target.files || [])
@@ -37,12 +64,16 @@ const CreatePost = () => {
         }
         const formData = new FormData()
         formData.append("text", text)
+        if (repostId) {
+            formData.append("parent_post_id", repostId)
+        }
         images.forEach(file => formData.append("images", file));
 
         try {
-            await store.createPost(formData)
+            const response = await store.createPost(formData)
             setText("")
             setImages([])
+            navigate(`/posts/${response.id}`)
         } catch (e) {
             console.log("error via creation post")
         }
@@ -68,6 +99,18 @@ const CreatePost = () => {
           ></textarea>
                     <span className="text-danger ps-3">{error}</span>
                 </div>
+                {isLoading ? (
+                    <div className="d-flex justify-content-center m-5">
+                        <div className="spinner-border" role="status">
+                        </div>
+                    </div>
+                ): (
+                    <>
+                        {subPost && (
+                            <div className="px-3 pb-3"><RepostedPost post={subPost}/></div>
+                        )}
+                    </>
+                )}
                 {images.length > 0 && (
                     <div className="p-3">
                         <div className="d-flex gap-2 flex-wrap">
@@ -110,6 +153,8 @@ const CreatePost = () => {
                     </div>
                 )}
 
+
+
                 <div className="px-3 pb-3 mt-2 d-flex mx-2 justify-content-between">
                     <div className="post-footer-item cursor-pointer" onClick={triggerFileInput}>
                         <i className="bi bi-image"></i>
@@ -129,6 +174,8 @@ const CreatePost = () => {
                     multiple
                 />
             </div>
+
+
         </>
     );
 }

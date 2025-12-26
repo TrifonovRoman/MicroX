@@ -1,10 +1,11 @@
-import {useContext, useState} from "react"
 import { observer } from "mobx-react-lite"
 import Avatar from "./Avatar"
 import {Context} from "../index";
 import PostMedia from "./PostMedia.tsx";
-import {Link, useNavigate} from "react-router-dom";
-
+import {createSearchParams, Link, useNavigate} from "react-router-dom";
+import {useContext} from "react";
+import RepostedPost from "./RepostedPost.tsx";
+import repostedPost from "./RepostedPost.tsx";
 
 
 const Post = ({post, setPosts, setPost}) => {
@@ -52,9 +53,12 @@ const Post = ({post, setPosts, setPost}) => {
         }
     }
 
-    const handleRepostClick = (e) => {
+    const handleRepost = (e) => {
         e.stopPropagation();
-
+        navigate({
+            pathname:"/create",
+            search: createSearchParams({repostId: post.id}).toString(),
+        })
     }
     
     const handleLikeView = () => {
@@ -117,9 +121,6 @@ const Post = ({post, setPosts, setPost}) => {
                         >
                             {post.author.username}
                         </Link>
-                        {/*<span className="post-tag small text-muted m-0">*/}
-                        {/*    {post.author.username}*/}
-                        {/*</span>*/}
                     </div>
                     <span className="post-time small text-muted">
                         {formatDateTime(post.created_at)}
@@ -131,6 +132,11 @@ const Post = ({post, setPosts, setPost}) => {
                         <PostMedia images={post.images} />
                     </div>
 
+                    {post.reposted_post && (
+                        <div onClick={(e) => e.stopPropagation()}>
+                            <RepostedPost post={post.reposted_post} />
+                        </div>
+                    )}
                 </div>
                 <div className="post-footer mt-3">
                     <div className="d-flex align-content-center gap-4">
@@ -153,7 +159,7 @@ const Post = ({post, setPosts, setPost}) => {
 
 
                         </div>
-                        <div className="post-footer-item">
+                        <div className="post-footer-item" onClick={handleRepost}>
                             <i className="icon bi bi-arrow-repeat"></i>
                             {post.counts.reposts === 0 ? (
                                 <span className="text-muted ps-1 d-none">0</span>

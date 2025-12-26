@@ -53,10 +53,10 @@ const Navbar = () => {
         <Link to={`/profile/${store.id}`} className={store.isAuth ? '' : 'd-none'}>
             <Avatar username={store.username} id={store.id} isLocal={0} url={store.avatar_url}/>
         </Link>
-        <Link to="/login" className={`nav-item ${isActive('/login') ? 'active' : ''} ${!store.isAuth ? '' : 'd-none'}`}>
+        <Link to="/login" className={`d-flex align-items-center justify-content-center nav-item ${isActive('/login') ? 'active' : ''} ${!store.isAuth ? '' : 'd-none'}`}>
             <i className="bi bi-box-arrow-in-right"></i>
         </Link>
-        <div onClick={handleLogout} className={`cursor-pointer nav-item mt-2 ${store.isAuth ? '' : 'd-none'}`}>
+        <div onClick={handleLogout} className={`d-flex align-items-center justify-content-center cursor-pointer nav-item mt-2 ${store.isAuth ? '' : 'd-none'}`}>
             <i className="bi bi-box-arrow-right"></i>
         </div>
     </nav>

@@ -103,10 +103,11 @@
 
 .grid-3 {
     flex-direction: row;
+
 }
 
 .grid-3 > .post-media-item:first-child {
-    flex: 2;
+    flex: 1;
 }
 
 .grid-3 > .post-media-stack {

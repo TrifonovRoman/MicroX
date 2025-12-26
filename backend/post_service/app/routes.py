@@ -94,27 +94,110 @@ def create_post():
 
 @bp.route('/posts/<int:post_id>', methods=['GET'])
 def get_post(post_id):
+    user = validate_user(request.headers.get("Authorization"))
+    current_user_id = user["id"] if user else None
+
     post = Post.query.get(post_id)
     if not post or post.is_deleted:
         return jsonify({"error": "Пост не найден"}), 404
 
-    likes = db.session.query(func.count(Like.id)).filter(Like.post_id == post_id).scalar()
-    comments = db.session.query(func.count(Comment.id)).filter(Comment.post_id == post_id, Comment.is_deleted == False).scalar()
-    reposts = db.session.query(func.count(Post.id)).filter(Post.parent_post_id == post_id, Post.is_deleted == False).scalar()
+    parent_ids = []
+    if post.parent_post_id:
+        parent_ids = [post.parent_post_id]
+
+    reposted_posts_map = {}
+    if parent_ids:
+        reposted_posts = Post.query.filter(
+            Post.id.in_(parent_ids),
+            Post.is_deleted == False
+        ).all()
+        reposted_post_ids = [p.id for p in reposted_posts]
+
+        reposted_images = {}
+        if reposted_post_ids:
+            images = db.session.query(
+                PostImage.post_id,
+                PostImage.file_path,
+                PostImage.position,
+                PostImage.width,
+                PostImage.height
+            ).filter(PostImage.post_id.in_(reposted_post_ids)).all()
+            for img in images:
+                reposted_images.setdefault(img[0], []).append({
+                    "url": img[1], "position": img[2], "width": img[3], "height": img[4]
+                })
+
+        reposted_user_ids = [p.user_id for p in reposted_posts]
+        reposted_users = {}
+        if reposted_user_ids:
+            try:
+                r = requests.post(f"{USER_SERVICE_URL}/users/batch", json={"ids": reposted_user_ids}, timeout=2)
+                if r.ok:
+                    for u in r.json():
+                        reposted_users[int(u["id"])] = {
+                            "user_id": u["id"],
+                            "username": u["username"],
+                            "user_avatar": u["avatar_url"],
+                            "avatar_width": u["avatar_width"],
+                            "avatar_height": u["avatar_height"],
+                        }
+            except Exception as e:
+                logging.error(f"Failed to fetch reposted users: {e}")
+
+        for p in reposted_posts:
+            likes = db.session.query(func.count(Like.id)).filter(Like.post_id == p.id).scalar() or 0
+            comments = db.session.query(func.count(Comment.id)).filter(Comment.post_id == p.id, Comment.is_deleted == False).scalar() or 0
+            reposts = db.session.query(func.count(Post.id)).filter(Post.parent_post_id == p.id, Post.is_deleted == False).scalar() or 0
+
+            reposted_posts_map[p.id] = {
+                "id": p.id,
+                "author": reposted_users.get(p.user_id),
+                "text": p.text,
+                "created_at": p.created_at.isoformat(),
+                "parent_post_id": p.parent_post_id,
+                "counts": {
+                    "likes": likes,
+                    "comments": comments,
+                    "reposts": reposts
+                },
+                "images": sorted(reposted_images.get(p.id, []), key=lambda x: x["position"]),
+                "is_liked": False
+            }
+
+    is_liked = False
+    if current_user_id:
+        like_exists = Like.query.filter_by(
+            user_id=current_user_id,
+            post_id=post_id
+        ).first() is not None
+        is_liked = like_exists
+
+    likes = db.session.query(func.count(Like.id)).filter(Like.post_id == post_id).scalar() or 0
+    comments = db.session.query(func.count(Comment.id)).filter(Comment.post_id == post_id, Comment.is_deleted == False).scalar() or 0
+    reposts = db.session.query(func.count(Post.id)).filter(Post.parent_post_id == post_id, Post.is_deleted == False).scalar() or 0
+
     images = db.session.query(
         PostImage.file_path,
         PostImage.position,
         PostImage.width,
         PostImage.height
-    ).filter(   
-        PostImage.post_id == post_id
-    ).order_by(PostImage.position).all()
+    ).filter(PostImage.post_id == post_id).order_by(PostImage.position).all()
+
+    try:
+        r = requests.get(f"{USER_SERVICE_URL}/users/{post.user_id}", timeout=2)
+        r.raise_for_status()
+        user_info = r.json()
+    except Exception as e:
+        logging.error(f"Failed to fetch author {post.user_id}: {e}")
+        return jsonify({"error": "Не удалось загрузить автора"}), 500
 
     result = {
         "id": post.id,
         "text": post.text,
         "parent_post_id": post.parent_post_id,
+        "reposted_post": reposted_posts_map.get(post.parent_post_id),
         "created_at": post.created_at.isoformat(),
+        "is_liked": is_liked,
         "counts": {
             "likes": likes,
             "comments": comments,
@@ -123,16 +206,14 @@ def get_post(post_id):
         "images": [
             {"url": path, "position": pos, "width": w, "height": h}
             for path, pos, w, h in images
-        ]
-    }
-    r = requests.get(f"{USER_SERVICE_URL}/users/{post.user_id}", timeout=2)
-    user_info = r.json()
-    result["author"] = {
-        "user_id": post.user_id,
-        "username": user_info["username"],
-        "avatar_url": user_info["avatar_url"],
-        "avatar_width": user_info["avatar_width"],
-        "avatar_height": user_info["avatar_height"],
+        ],
+        "author": {
+            "user_id": post.user_id,
+            "username": user_info["username"],
+            "user_avatar": user_info["avatar_url"],
+            "avatar_width": user_info["avatar_width"],
+            "avatar_height": user_info["avatar_height"],
+        }
     }
 
     return jsonify(result), 200
@@ -214,10 +295,22 @@ def list_posts():
                     "avatar_height": u["avatar_height"],
                 }
 
+    posts_by_id = {post.id: post for post, *_ in posts}
+
     result = []
     for post, likes_count, comments_count, reposts_count, liked_by_me, images in posts:
         images_sorted = sorted(images or [], key=lambda x: x["position"]) if images else []
         author = users_by_id.get(post.user_id)
+
+        reposted_post = None
+        if post.parent_post_id is not None:
+            reposted_db_post = posts_by_id.get(post.parent_post_id)
+            if reposted_db_post:
+                reposted_post = build_post_dict(
+                    reposted_db_post,
+                    users_by_id.get(reposted_db_post.user_id),
+                    []
+                )
         result.append({
             "id": post.id,
             "author": {
@@ -230,6 +323,7 @@ def list_posts():
             "text": post.text,
             "created_at": post.created_at.isoformat(),
             "parent_post_id": post.parent_post_id,
+            "reposted_post": reposted_post,
             "counts": {
                 "likes": likes_count,
                 "comments": comments_count,
@@ -241,12 +335,38 @@ def list_posts():
 
     return jsonify(result), 200
 
+def build_post_dict(post_db, author_dict, images):
+    author = None
+    if author_dict:
+        author = {
+            "user_id": post_db.user_id,
+            "username": author_dict["username"],
+            "user_avatar": author_dict["avatar_url"],
+            "avatar_width": author_dict["avatar_width"],
+            "avatar_height": author_dict["avatar_height"],
+        }
+
+    images_sorted = sorted(images or [], key=lambda x: x["position"]) if images else []
+    return {
+        "id": post_db.id,
+        "author": author,
+        "text": post_db.text,
+        "created_at": post_db.created_at.isoformat(),
+        "parent_post_id": post_db.parent_post_id,
+        "counts": {
+            "likes": 0,
+            "comments": 0,
+            "reposts": 0
+        },
+        "images": images_sorted,
+        "is_liked": False
+    }
+
 @bp.route('/posts/users/<int:user_id>', methods=['GET'])
 def list_user_posts(user_id):
     current_user = validate_user(request.headers.get("Authorization"))
     current_user_id = current_user["id"] if current_user else None
 
-    # Likes
     likes_all_sub = db.session.query(
         Like.post_id.label("post_id"),
         func.count(Like.id).label("likes_count")
@@ -259,19 +379,16 @@ def list_user_posts(user_id):
             func.count(Like.id).label("liked")
         ).filter(Like.user_id == current_user_id).group_by(Like.post_id).subquery()
 
-    # Comments
     comments_count_sub = db.session.query(
         Comment.post_id.label("post_id"),
         func.count(Comment.id).label("comments_count")
-    ).filter(Comment.is_deleted==False).group_by(Comment.post_id).subquery()
+    ).filter(Comment.is_deleted == False).group_by(Comment.post_id).subquery()
 
-    # Reposts
     reposts_count_sub = db.session.query(
         Post.parent_post_id.label("post_id"),
         func.count(Post.id).label("reposts_count")
-    ).filter(Post.is_deleted==False, Post.parent_post_id!=None).group_by(Post.parent_post_id).subquery()
+    ).filter(Post.is_deleted == False, Post.parent_post_id != None).group_by(Post.parent_post_id).subquery()
 
-    # Images
     images_sub = db.session.query(
         PostImage.post_id.label("post_id"),
         func.json_agg(
@@ -284,7 +401,6 @@ def list_user_posts(user_id):
         ).label("images")
     ).group_by(PostImage.post_id).subquery()
 
-    # Main query
     q = db.session.query(
         Post,
         func.coalesce(likes_all_sub.c.likes_count, 0).label("likes_count"),
@@ -302,7 +418,6 @@ def list_user_posts(user_id):
         q = q.outerjoin(likes_me_sub, likes_me_sub.c.post_id == Post.id)
 
     q = q.filter(Post.is_deleted == False, Post.user_id == user_id).order_by(Post.created_at.desc())
-
     posts = q.all()
 
     author = None
@@ -317,6 +432,70 @@ def list_user_posts(user_id):
             "avatar_height": u["avatar_height"]
         }
 
+    parent_ids = set()
+    for post, *_ in posts:
+        if post.parent_post_id is not None:
+            parent_ids.add(post.parent_post_id)
+
+    reposted_posts_map = {}
+    if parent_ids:
+        reposted_posts = Post.query.filter(
+            Post.id.in_(parent_ids),
+            Post.is_deleted == False
+        ).all()
+        reposted_post_ids = [p.id for p in reposted_posts]
+
+        reposted_images = {}
+        if reposted_post_ids:
+            images = db.session.query(
+                PostImage.post_id,
+                PostImage.file_path,
+                PostImage.position,
+                PostImage.width,
+                PostImage.height
+            ).filter(PostImage.post_id.in_(reposted_post_ids)).all()
+            for img in images:
+                reposted_images.setdefault(img[0], []).append({
+                    "url": img[1],
+                    "position": img[2],
+                    "width": img[3],
+                    "height": img[4]
+                })
+
+        reposted_user_ids = [p.user_id for p in reposted_posts]
+        reposted_users = {}
+        if reposted_user_ids:
+            r = requests.post(f"{USER_SERVICE_URL}/users/batch", json={"ids": reposted_user_ids}, timeout=2)
+            if r.ok:
+                for u in r.json():
+                    reposted_users[int(u["id"])] = {
+                        "user_id": u["id"],
+                        "username": u["username"],
+                        "user_avatar": u["avatar_url"],
+                        "avatar_width": u["avatar_width"],
+                        "avatar_height": u["avatar_height"],
+                    }
+
+        for p in reposted_posts:
+            likes = db.session.query(func.count(Like.id)).filter(Like.post_id == p.id).scalar()
+            comments = db.session.query(func.count(Comment.id)).filter(Comment.post_id == p.id, Comment.is_deleted == False).scalar()
+            reposts = db.session.query(func.count(Post.id)).filter(Post.parent_post_id == p.id, Post.is_deleted == False).scalar()
+
+            reposted_posts_map[p.id] = {
+                "id": p.id,
+                "author": reposted_users.get(p.user_id),
+                "text": p.text,
+                "created_at": p.created_at.isoformat(),
+                "parent_post_id": p.parent_post_id,
+                "counts": {
+                    "likes": likes,
+                    "comments": comments,
+                    "reposts": reposts
+                },
+                "images": sorted(reposted_images.get(p.id, []), key=lambda x: x["position"]),
+                "is_liked": False
+            }
+
     result = []
     for post, likes_count, comments_count, reposts_count, liked_by_me, images in posts:
         images_sorted = sorted(images or [], key=lambda x: x["position"]) if images else []
@@ -325,6 +504,8 @@ def list_user_posts(user_id):
             "author": author,
             "text": post.text,
             "created_at": post.created_at.isoformat(),
+            "parent_post_id": post.parent_post_id,
+            "reposted_post": reposted_posts_map.get(post.parent_post_id),
             "counts": {
                 "likes": likes_count,
                 "comments": comments_count,

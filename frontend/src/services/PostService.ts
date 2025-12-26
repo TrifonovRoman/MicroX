@@ -52,7 +52,7 @@ export default class PostService {
             .then(response => response)
     }
 
-    static async createPost(formData:FormData): Promise<AxiosResponse<UserInfo>> {
+    static async createPost(formData:FormData): Promise<AxiosResponse<Post>> {
         return $api.post('/posts', formData, {
             headers: {
                 'Content-Type':'multipart/form-data'

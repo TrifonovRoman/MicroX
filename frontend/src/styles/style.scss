@@ -192,6 +192,10 @@ a {
     padding: 0 0.75rem;
 }
 
+.huge-input {
+  height: 180px;
+}
+
 
 
 
@@ -358,9 +362,30 @@ a {
   border-radius: 50px;
 }
 
+.reposted-post {
+  background: #f9f9f9;
+  border-radius: 12px;
+  margin-top: 12px;
+}
+
+.reposted-post .reposted-post-content {
+  border-radius: 16px;
+  border: 1px solid #eee;
+}
+
+@media (max-width: 767.98px) {
+  .reposted-post {
+    padding-left: 8px;
+    border-left-width: 2px;
+  }
+
+  .reposted-post .reposted-post-content {
+    border-radius: 12px;
+  }
+}
 
 
-/* Адаптивность */
+
 @media (max-width: 768px) {
     .sidebar {
         position: fixed;

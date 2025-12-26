@@ -22,7 +22,6 @@ const EditProfile = () => {
     useEffect(() => {
         if (store.isAuth) {
             setUsername(store.username || "");
-            setDisplayName(store.display_name || store.username || "");
             if (store.avatar_url) {
                 setAvatarPreview(`http://127.0.0.1:8000${store.avatar_url}`);
             }
@@ -67,7 +66,7 @@ const EditProfile = () => {
 
         const formData = new FormData();
         formData.append("username", username.trim());
-        formData.append("display_name", displayName.trim());
+        formData.append("bio", displayName.trim());
 
         if (avatarFile) {
             formData.append("avatar", avatarFile);
@@ -147,11 +146,11 @@ const EditProfile = () => {
                         </div>
 
                         <div className="form-group my-4">
-                            <label className="form-label text-start d-block">Отображаемое имя</label>
-                            <input
+                            <label className="form-label text-start d-block">Био</label>
+                            <textarea
                                 type="text"
                                 className="form-control"
-                                placeholder="Как вас зовут"
+                                placeholder="Расскажите о себе"
                                 value={displayName}
                                 onChange={(e) => setDisplayName(e.target.value)}
                                 disabled={isLoading}

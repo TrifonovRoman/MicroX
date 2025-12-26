@@ -181,13 +181,13 @@ def update_profile():
         return jsonify({"error": "Пользователь не найден"}), 404
 
     username = request.form.get("username")
-    display_name = request.form.get("display_name")
+    bio = request.form.get("bio")
 
     if username:
         user.username = username
 
-    if display_name:
-        user.display_name = display_name
+    if bio:
+        user.bio = bio
 
     file = request.files.get("avatar")
     if file and file.filename:
@@ -222,7 +222,7 @@ def update_profile():
     return jsonify({
         "id": user.id,
         "username": user.username,
-        "display_name": user.display_name,
+        "bio": user.bio,
         "avatar_url": user.avatar_url,
         "avatar_width": user.avatar_width,
         "avatar_height": user.avatar_height,
