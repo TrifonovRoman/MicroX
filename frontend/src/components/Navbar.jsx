@@ -46,9 +46,6 @@ const Navbar = () => {
             <Link to="/create" className={`nav-item ${isActive('/create') ? 'active' : ''}`}>
                 <i className="bi bi-plus-lg"></i>
             </Link>
-            <Link to="/notifications" className={`nav-item ${isActive('/notifications') ? 'active' : ''}`}>
-                <i className="bi bi-bell"></i>
-            </Link>
         </div>
         <Link to={`/profile/${store.id}`} className={store.isAuth ? '' : 'd-none'}>
             <Avatar username={store.username} id={store.id} isLocal={0} url={store.avatar_url}/>

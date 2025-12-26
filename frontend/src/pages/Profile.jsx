@@ -60,10 +60,10 @@ const Profile = () => {
 
     if (isNotFound) {
         return (
-            <>
-                <Header leftIcon="bi-arrow-left" onClickLeft={goBack} title="Произошла ошибка"/>
-                <div className="fs-1">Профиль не был найден</div>
-            </>
+            <div className="text-center">
+                <Header leftIcon="bi-arrow-left" onClickLeft={goBack} title="Ошибка 404"/>
+                <span>Профиль не найден</span>
+            </div>
         )
     }
 
@@ -78,9 +78,7 @@ const Profile = () => {
                         <Skeleton className="text-left mb-0 mt-2" isLoading={isLoading} width={150} height={30}>
                             <h3 className="profile-name mb-0 text-bold">{info?.username}</h3>
                         </Skeleton>
-                        <Skeleton className="mt-1" isLoading={isLoading} width={110} height={20}>
-                            <div className="profile-username">@{info?.username}</div>
-                        </Skeleton>
+
                         <Skeleton className="mt-3 mb-4" isLoading={isLoading} width="40vh" height={20}>
                             <div className="profile-bio mt-3 mb-4">
                                 {info?.bio || "Пока ничего не написано"}
